@@ -1,0 +1,23 @@
+# ─── Docker secrets (NEVER commit) ──────────────────────────────────────────
+.secrets/
+
+# ─── SSL certificates (regenerate with generate-cert.sh) ─────────────────────
+reverse-proxy/certs/*.crt
+reverse-proxy/certs/*.key
+
+# ─── Build artifacts ──────────────────────────────────────────────────────────
+backend/target/
+
+# ─── Environment overrides ────────────────────────────────────────────────────
+.env.local
+.env.*.local
+
+# ─── Load test results ────────────────────────────────────────────────────────
+load-tests/results/
+
+# ─── OS / IDE ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/settings.json
