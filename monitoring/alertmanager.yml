@@ -1,0 +1,17 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 10m
+  receiver: 'notification-service-webhook'
+
+receivers:
+  - name: 'notification-service-webhook'
+    webhook_configs:
+      - url: 'http://notification-service:5000/notify'
+        send_resolved: true
+
+inhibit_rules: []

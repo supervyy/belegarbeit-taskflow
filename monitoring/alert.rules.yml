@@ -1,0 +1,31 @@
+groups:
+  - name: taskflow.alerts
+    rules:
+
+      - alert: ContainerDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} is down"
+          description: >
+            The instance {{ $labels.instance }} (job: {{ $labels.job }}) has been
+            unreachable for more than 30 seconds. Prometheus cannot scrape its metrics endpoint.
+
+      - alert: HighMemoryUsage
+        expr: >
+          (
+            container_memory_usage_bytes{image!=""}
+            /
+            container_spec_memory_limit_bytes{image!=""}
+          ) * 100 > 85
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on container {{ $labels.name }}"
+          description: >
+            Container {{ $labels.name }} (image: {{ $labels.image }}) is using
+            {{ $value | printf "%.1f" }}% of its memory limit, which exceeds the 85% threshold.
+            Current usage: {{ with query (printf "container_memory_usage_bytes{name=\"%s\"}" $labels.name) }}{{ . | first | value | humanize1024 }}B{{ end }}.

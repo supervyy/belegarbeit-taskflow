@@ -1,13 +1,1126 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TaskFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg:          #0a0e1a;
+      --surface:     #111827;
+      --surface-2:   #1a2235;
+      --border:      rgba(59, 130, 246, 0.15);
+      --border-hover:rgba(59, 130, 246, 0.45);
+      --accent:      #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --accent-dim:  rgba(59, 130, 246, 0.12);
+      --text:        #e2e8f0;
+      --text-muted:  #64748b;
+      --text-faint:  #334155;
+      --green:       #22c55e;
+      --green-dim:   rgba(34, 197, 94, 0.12);
+      --yellow:      #eab308;
+      --yellow-dim:  rgba(234, 179, 8, 0.12);
+      --red:         #ef4444;
+      --red-dim:     rgba(239, 68, 68, 0.12);
+      --orange:      #f97316;
+      --orange-dim:  rgba(249, 115, 22, 0.12);
+      --radius:      14px;
+      --radius-sm:   8px;
+      --transition:  0.2s ease;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59,130,246,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.05) 0%, transparent 50%);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 20px 60px;
+    }
+
+    /* ── Banners ─────────────────────────────────────────────── */
+    .banner-stack {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      animation: slideDown 0.3s ease;
+    }
+
+    .banner.visible { display: flex; }
+
+    .banner-red {
+      background: linear-gradient(90deg, rgba(239,68,68,0.18), rgba(239,68,68,0.08));
+      border-bottom: 1px solid rgba(239,68,68,0.3);
+      color: #fca5a5;
+    }
+
+    .banner-orange {
+      background: linear-gradient(90deg, rgba(249,115,22,0.18), rgba(249,115,22,0.08));
+      border-bottom: 1px solid rgba(249,115,22,0.3);
+      color: #fdba74;
+    }
+
+    .banner-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+    @keyframes slideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    .header {
+      padding: 48px 0 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .logo-group {}
+
+    .logo {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #e2e8f0 30%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .logo span {
+      background: linear-gradient(135deg, var(--accent) 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 16px;
+      border-radius: 99px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: all var(--transition);
+      user-select: none;
+      letter-spacing: 0.03em;
+    }
+
+    .status-pill.connected {
+      background: var(--green-dim);
+      border-color: rgba(34,197,94,0.3);
+      color: var(--green);
+    }
+
+    .status-pill.disconnected {
+      background: var(--red-dim);
+      border-color: rgba(239,68,68,0.3);
+      color: var(--red);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .status-pill.connected .status-dot {
+      animation: pulse-green 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+      50%       { opacity: 0.8; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+    }
+
+    /* ── Section titles ──────────────────────────────────────── */
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 0 0 1px var(--border-hover), 0 4px 32px rgba(0,0,0,0.3);
+    }
+
+    /* ── Infrastructure Status ───────────────────────────────── */
+    .infra-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 600px) {
+      .infra-grid { grid-template-columns: 1fr; }
+    }
+
+    .infra-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .infra-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    }
+
+    .infra-card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .infra-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .badge-up {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+
+    .badge-down {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+
+    .badge-unknown {
+      background: rgba(100,116,139,0.12);
+      color: var(--text-muted);
+      border: 1px solid rgba(100,116,139,0.2);
+    }
+
+    .infra-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 400;
+      word-break: break-all;
+    }
+
+    /* ── Tasks ───────────────────────────────────────────────── */
+    .tasks-section { margin-bottom: 32px; }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+      min-height: 60px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+      animation: fadeInUp 0.25s ease both;
+    }
+
+    .task-item:hover {
+      border-color: var(--border-hover);
+      transform: translateX(3px);
+      box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .task-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .task-status-dot.todo        { background: var(--text-faint); }
+    .task-status-dot.in_progress { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    .task-status-dot.done        { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+
+    .task-title {
+      flex: 1;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .task-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .task-badge.todo {
+      background: rgba(100,116,139,0.15);
+      color: var(--text-muted);
+      border: 1px solid rgba(100,116,139,0.25);
+    }
+
+    .task-badge.in_progress {
+      background: var(--yellow-dim);
+      color: var(--yellow);
+      border: 1px solid rgba(234,179,8,0.25);
+    }
+
+    .task-badge.done {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.25);
+    }
+
+    .task-empty {
+      text-align: center;
+      padding: 36px 20px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      border: 1px dashed var(--text-faint);
+      border-radius: var(--radius-sm);
+    }
+
+    .task-empty-icon { font-size: 2rem; margin-bottom: 8px; }
+
+    .task-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 28px;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    /* ── Add Task Form ────────────────────────────────────────── */
+    .add-form {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 560px) {
+      .add-form { grid-template-columns: 1fr; }
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .form-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    select {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]::placeholder { color: var(--text-muted); }
+
+    input[type="text"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    select option {
+      background: #1a2235;
+      color: var(--text);
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 0 0 var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+      box-shadow: 0 0 20px var(--accent-glow), 0 4px 14px rgba(37,99,235,0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--border-hover);
+      background: #1e2d42;
+      box-shadow: 0 0 14px var(--accent-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary:active { transform: translateY(0); }
+
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ── Test Panel ──────────────────────────────────────────── */
+    .test-section { margin-bottom: 32px; }
+
+    .test-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      padding: 20px 24px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: border-color var(--transition);
+      gap: 12px;
+    }
+
+    .test-header:hover { border-color: var(--border-hover); }
+
+    .test-header-left { display: flex; align-items: center; gap: 10px; }
+
+    .test-header-icon {
+      font-size: 1rem;
+      width: 32px;
+      height: 32px;
+      background: var(--accent-dim);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+    }
+
+    .test-header-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .test-header-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .test-chevron {
+      color: var(--text-muted);
+      font-size: 1rem;
+      transition: transform var(--transition);
+    }
+
+    .test-chevron.open { transform: rotate(180deg); }
+
+    .test-body {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 20px 24px 24px;
+      margin-top: -4px;
+    }
+
+    .test-body.open { display: block; }
+
+    .test-header.panel-open {
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-bottom-color: var(--text-faint);
+    }
+
+    .test-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .response-box {
+      background: #070b14;
+      border: 1px solid var(--text-faint);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-family: 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      min-height: 60px;
+      max-height: 240px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.7;
+    }
+
+    .response-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Divider ─────────────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--text-faint);
+      margin: 28px 0;
+    }
+
+    /* ── Refresh counter ─────────────────────────────────────── */
+    .refresh-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .refresh-info {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .refresh-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .refresh-dot.active { opacity: 1; }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-faint);
+      padding-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <h1>TaskFlow</h1>
-  <p>Projektmanagement-Tool – Frontend erreichbar</p>
-  <p>Status: OK</p>
+
+<!-- ── Banner Stack ───────────────────────────────────────────── -->
+<div class="banner-stack">
+  <div class="banner banner-red" id="banner-network">
+    <span class="banner-icon">⚠️</span>
+    <span>Backend nicht erreichbar – Netzwerkfehler</span>
+  </div>
+  <div class="banner banner-orange" id="banner-db">
+    <span class="banner-icon">⚠️</span>
+    <span>Datenbankverbindung verloren – Backend läuft, DB nicht erreichbar</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="logo-group">
+      <div class="logo">Task<span>Flow</span></div>
+      <div class="subtitle">Aufgabenverwaltung &amp; Infrastruktur-Monitor</div>
+    </div>
+    <div class="status-pill disconnected" id="conn-pill">
+      <div class="status-dot"></div>
+      <span id="conn-label">Getrennt</span>
+    </div>
+  </header>
+
+  <!-- ── Infrastructure Status ──────────────────────────────── -->
+  <p class="section-title">Infrastruktur Status</p>
+  <div class="infra-grid">
+
+    <div class="infra-card">
+      <div class="infra-card-label">Backend</div>
+      <div class="infra-badge badge-unknown" id="backend-badge">
+        <span>–</span>
+      </div>
+      <div class="infra-sub" id="backend-instance">Unbekannt</div>
+    </div>
+
+    <div class="infra-card">
+      <div class="infra-card-label">Datenbank</div>
+      <div class="infra-badge badge-unknown" id="db-badge">
+        <span>–</span>
+      </div>
+      <div class="infra-sub" id="db-sub">Unbekannt</div>
+    </div>
+
+    <div class="infra-card">
+      <div class="infra-card-label">Zuletzt aktualisiert</div>
+      <div style="font-size:0.95rem; font-weight:600; color:var(--text); margin-top:4px;" id="last-updated">–</div>
+      <div class="infra-sub" id="next-refresh">Nächste Aktualisierung in 15 s</div>
+    </div>
+
+  </div>
+
+  <!-- ── Tasks Panel ────────────────────────────────────────── -->
+  <section class="tasks-section">
+    <div class="refresh-row">
+      <p class="section-title" style="margin-bottom:0">Aufgaben</p>
+      <div style="flex:1"></div>
+      <div class="refresh-dot" id="refresh-dot"></div>
+      <span class="refresh-info" id="task-count">–</span>
+    </div>
+
+    <div class="task-list" id="task-list">
+      <div class="task-loading">
+        <div class="spinner"></div>
+        <span>Aufgaben werden geladen …</span>
+      </div>
+    </div>
+
+    <!-- Add Task Form -->
+    <div class="card" style="margin-top:6px;">
+      <p class="section-title" style="margin-bottom:16px;">Task hinzufügen</p>
+      <form class="add-form" id="add-form">
+        <div class="form-group">
+          <label class="form-label" for="task-title">Titel</label>
+          <input type="text" id="task-title" name="title" placeholder="Neuen Task beschreiben …" required autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="task-status">Status</label>
+          <select id="task-status" name="status">
+            <option value="todo">Todo</option>
+            <option value="in_progress">In Bearbeitung</option>
+            <option value="done">Erledigt</option>
+          </select>
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+          <button type="submit" class="btn-primary" id="submit-btn">Hinzufügen</button>
+        </div>
+      </form>
+      <div id="form-feedback" style="margin-top:10px; font-size:0.8rem; color:var(--text-muted); display:none;"></div>
+    </div>
+  </section>
+
+  <!-- ── Test Panel ─────────────────────────────────────────── -->
+  <section class="test-section">
+    <div class="test-header" id="test-header" onclick="toggleTestPanel()">
+      <div class="test-header-left">
+        <div class="test-header-icon">🧪</div>
+        <div>
+          <div class="test-header-title">Test-Panel</div>
+          <div class="test-header-subtitle">API-Endpunkte direkt testen</div>
+        </div>
+      </div>
+      <div class="test-chevron" id="test-chevron">▼</div>
+    </div>
+
+    <div class="test-body" id="test-body">
+      <div class="test-buttons">
+        <button class="btn-secondary" id="btn-notify" onclick="testNotify()">🔔 Notification testen</button>
+        <button class="btn-secondary" id="btn-payload" onclick="testPayload()">📦 5 MB Payload testen</button>
+      </div>
+      <div class="response-label">API-Antwort</div>
+      <div class="response-box" id="response-box">Noch keine Anfrage gesendet.</div>
+    </div>
+  </section>
+
+  <footer class="footer">TaskFlow &copy; 2025 &mdash; Alle Systeme live</footer>
+</div>
+
+<script>
+  /* ──────────────────────────────────────────────────────────────
+     State
+  ────────────────────────────────────────────────────────────── */
+  const state = {
+    networkError: false,
+    dbError: false,
+    countdown: 15,
+  };
+
+  /* ──────────────────────────────────────────────────────────────
+     DOM Refs
+  ────────────────────────────────────────────────────────────── */
+  const $ = (id) => document.getElementById(id);
+  const connPill       = $('conn-pill');
+  const connLabel      = $('conn-label');
+  const backendBadge   = $('backend-badge');
+  const backendInstance= $('backend-instance');
+  const dbBadge        = $('db-badge');
+  const dbSub          = $('db-sub');
+  const lastUpdated    = $('last-updated');
+  const nextRefresh    = $('next-refresh');
+  const taskList       = $('task-list');
+  const taskCount      = $('task-count');
+  const refreshDot     = $('refresh-dot');
+  const addForm        = $('add-form');
+  const submitBtn      = $('submit-btn');
+  const formFeedback   = $('form-feedback');
+  const responseBox    = $('response-box');
+  const bannerNetwork  = $('banner-network');
+  const bannerDb       = $('banner-db');
+
+  /* ──────────────────────────────────────────────────────────────
+     Banner helpers
+  ────────────────────────────────────────────────────────────── */
+  function updateBanners() {
+    if (state.networkError) {
+      bannerNetwork.classList.add('visible');
+      bannerDb.classList.remove('visible');       // Case A takes priority
+    } else {
+      bannerNetwork.classList.remove('visible');
+      if (state.dbError) {
+        bannerDb.classList.add('visible');
+      } else {
+        bannerDb.classList.remove('visible');
+      }
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Connection pill
+  ────────────────────────────────────────────────────────────── */
+  function setConnected(connected) {
+    connPill.className = 'status-pill ' + (connected ? 'connected' : 'disconnected');
+    connLabel.textContent = connected ? 'Verbunden' : 'Getrennt';
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Badge helpers
+  ────────────────────────────────────────────────────────────── */
+  function renderBadge(el, status) {
+    el.className = 'infra-badge';
+    if (status === 'UP') {
+      el.classList.add('badge-up');
+      el.innerHTML = '✔ UP';
+    } else if (status === 'DOWN') {
+      el.classList.add('badge-down');
+      el.innerHTML = '✖ DOWN';
+    } else {
+      el.classList.add('badge-unknown');
+      el.innerHTML = '– –';
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Format time
+  ────────────────────────────────────────────────────────────── */
+  function fmtTime(d) {
+    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Flash refresh dot
+  ────────────────────────────────────────────────────────────── */
+  function flashDot() {
+    refreshDot.classList.add('active');
+    setTimeout(() => refreshDot.classList.remove('active'), 600);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     GET /api/health
+  ────────────────────────────────────────────────────────────── */
+  async function fetchHealth() {
+    try {
+      const res = await fetch('/api/health');
+      const data = await res.json();
+
+      state.networkError = false;
+
+      // DB error detection
+      if (!res.ok && res.status === 503) {
+        state.dbError = true;
+      } else if (data && data.database && data.database === 'DOWN') {
+        state.dbError = true;
+      } else {
+        state.dbError = false;
+      }
+
+      // Backend status
+      const backendStatus = res.ok ? 'UP' : 'DOWN';
+      renderBadge(backendBadge, backendStatus);
+
+      // Instance name
+      const instance = data.instance || data.hostname || data.host || null;
+      backendInstance.textContent = instance ? instance : (res.ok ? 'Backend erreichbar' : 'Fehler');
+
+      // Database status
+      const dbStatus = data.database ? data.database.toUpperCase() : (res.ok ? 'UP' : 'DOWN');
+      renderBadge(dbBadge, dbStatus);
+      dbSub.textContent = dbStatus === 'UP' ? 'Verbindung aktiv' : 'Nicht erreichbar';
+
+      // Last updated
+      lastUpdated.textContent = fmtTime(new Date());
+
+      // Connection pill
+      setConnected(!state.networkError && !state.dbError);
+
+    } catch (err) {
+      state.networkError = true;
+      state.dbError = false;
+
+      renderBadge(backendBadge, 'DOWN');
+      backendInstance.textContent = 'Nicht erreichbar';
+      renderBadge(dbBadge, null);
+      dbSub.textContent = 'Unbekannt';
+      lastUpdated.textContent = fmtTime(new Date()) + ' (Fehler)';
+      setConnected(false);
+    }
+
+    updateBanners();
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     GET /api/tasks
+  ────────────────────────────────────────────────────────────── */
+  async function fetchTasks() {
+    flashDot();
+    try {
+      const res = await fetch('/api/tasks');
+      if (!res.ok) throw new Error('Response not ok: ' + res.status);
+      const tasks = await res.json();
+      renderTasks(Array.isArray(tasks) ? tasks : (tasks.tasks || []));
+    } catch (err) {
+      taskList.innerHTML = `
+        <div class="task-empty">
+          <div class="task-empty-icon">⚠️</div>
+          <div>Aufgaben konnten nicht geladen werden.</div>
+        </div>`;
+      taskCount.textContent = 'Fehler';
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Render task list
+  ────────────────────────────────────────────────────────────── */
+  function renderTasks(tasks) {
+    taskCount.textContent = tasks.length === 1 ? '1 Aufgabe' : tasks.length + ' Aufgaben';
+
+    if (tasks.length === 0) {
+      taskList.innerHTML = `
+        <div class="task-empty">
+          <div class="task-empty-icon">📋</div>
+          <div>Noch keine Aufgaben vorhanden.<br>Füge unten eine hinzu.</div>
+        </div>`;
+      return;
+    }
+
+    const statusOrder = { in_progress: 0, todo: 1, done: 2 };
+    tasks.sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
+
+    taskList.innerHTML = tasks.map((t, i) => {
+      const status = t.status || 'todo';
+      const labels = { todo: 'Todo', in_progress: 'In Bearbeitung', done: 'Erledigt' };
+      const label  = labels[status] || status;
+      const delay  = Math.min(i * 40, 300);
+      return `
+        <div class="task-item" style="animation-delay:${delay}ms">
+          <div class="task-status-dot ${status}"></div>
+          <div class="task-title">${escapeHtml(t.title || t.name || '(Ohne Titel)')}</div>
+          <div class="task-badge ${status}">${label}</div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     HTML escape
+  ────────────────────────────────────────────────────────────── */
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     POST /api/tasks
+  ────────────────────────────────────────────────────────────── */
+  addForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title  = $('task-title').value.trim();
+    const status = $('task-status').value;
+    if (!title) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Speichern …';
+    formFeedback.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, status }),
+      });
+
+      if (res.ok) {
+        $('task-title').value = '';
+        $('task-status').value = 'todo';
+        showFormFeedback('✔ Aufgabe wurde hinzugefügt.', 'var(--green)');
+        await fetchTasks();
+      } else {
+        const msg = await res.text();
+        showFormFeedback('⚠️ Fehler: ' + (msg || res.status), 'var(--orange)');
+      }
+    } catch (err) {
+      showFormFeedback('⚠️ Netzwerkfehler – Backend nicht erreichbar.', 'var(--red)');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Hinzufügen';
+    }
+  });
+
+  function showFormFeedback(msg, color) {
+    formFeedback.textContent = msg;
+    formFeedback.style.color = color;
+    formFeedback.style.display = 'block';
+    setTimeout(() => { formFeedback.style.display = 'none'; }, 4000);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Test Panel
+  ────────────────────────────────────────────────────────────── */
+  function toggleTestPanel() {
+    const body    = $('test-body');
+    const chevron = $('test-chevron');
+    const header  = $('test-header');
+    const isOpen  = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+    header.classList.toggle('panel-open', !isOpen);
+  }
+
+  function setResponseBox(text) {
+    responseBox.textContent = text;
+  }
+
+  async function testNotify() {
+    const btn = $('btn-notify');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sende …';
+    setResponseBox('Warte auf Antwort …');
+    try {
+      const res = await fetch('/api/notify', { method: 'POST' });
+      const text = await res.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      setResponseBox(`HTTP ${res.status} ${res.statusText}\n\n${pretty}`);
+    } catch (err) {
+      setResponseBox(`Netzwerkfehler:\n${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔔 Notification testen';
+    }
+  }
+
+  async function testPayload() {
+    const btn = $('btn-payload');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sende 5 MB …';
+    setResponseBox('Generiere 5 MB Payload und sende …');
+    try {
+      // Generate 5 MB of random-ish data
+      const size    = 5 * 1024 * 1024;
+      const chars   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const chunkSz = 4096;
+      const parts   = [];
+      let total = 0;
+      while (total < size) {
+        const len = Math.min(chunkSz, size - total);
+        let chunk = '';
+        for (let i = 0; i < len; i++) chunk += chars[Math.floor(Math.random() * chars.length)];
+        parts.push(chunk);
+        total += len;
+      }
+      const payload = parts.join('');
+
+      const start = performance.now();
+      const res   = await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: payload,
+      });
+      const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+      const text = await res.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      setResponseBox(`HTTP ${res.status} ${res.statusText} (${elapsed}s)\nPayload: ${(payload.length / 1024 / 1024).toFixed(2)} MB\n\n${pretty}`);
+    } catch (err) {
+      setResponseBox(`Netzwerkfehler:\n${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📦 5 MB Payload testen';
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Countdown & Auto-Refresh (15 s)
+  ────────────────────────────────────────────────────────────── */
+  let countdownVal = 15;
+
+  function tick() {
+    countdownVal--;
+    if (countdownVal <= 0) {
+      countdownVal = 15;
+      refresh();
+    }
+    nextRefresh.textContent = `Nächste Aktualisierung in ${countdownVal} s`;
+  }
+
+  async function refresh() {
+    await Promise.all([fetchHealth(), fetchTasks()]);
+  }
+
+  /* ──────────────────────────────────────────────────────────────
+     Boot
+  ────────────────────────────────────────────────────────────── */
+  (async () => {
+    taskList.innerHTML = `<div class="task-loading"><div class="spinner"></div><span>Aufgaben werden geladen …</span></div>`;
+    await refresh();
+    setInterval(tick, 1000);
+  })();
+</script>
 </body>
 </html>
