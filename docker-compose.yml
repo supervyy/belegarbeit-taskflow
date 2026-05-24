@@ -111,9 +111,10 @@ services:
     secrets:
       - db_password
     environment:
-      DB_HOST: database
-      DB_NAME: taskflow
-      DB_USER: taskflow
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/taskflow
+      SPRING_DATASOURCE_USERNAME: taskflow
+      SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       NOTIFICATION_SERVICE_URL: http://notification-service:5000
     depends_on:
       database:
@@ -142,9 +143,10 @@ services:
     secrets:
       - db_password
     environment:
-      DB_HOST: database
-      DB_NAME: taskflow
-      DB_USER: taskflow
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/taskflow
+      SPRING_DATASOURCE_USERNAME: taskflow
+      SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       NOTIFICATION_SERVICE_URL: http://notification-service:5000
     depends_on:
       database:
@@ -173,9 +175,10 @@ services:
     secrets:
       - db_password
     environment:
-      DB_HOST: database
-      DB_NAME: taskflow
-      DB_USER: taskflow
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/taskflow
+      SPRING_DATASOURCE_USERNAME: taskflow
+      SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       NOTIFICATION_SERVICE_URL: http://notification-service:5000
     depends_on:
       database:
