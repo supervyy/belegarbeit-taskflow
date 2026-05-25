@@ -298,7 +298,34 @@ backend-api-1:
 
 ---
 
-## 7. Trivy Image-Scan (Phase 2)
+## 7. Trivy Vulnerability Scan (Phase 2)
+
+Um zu demonstrieren, dass unsere Container auf bekannte Sicherheitslücken geprüft wurden, nutzen wir **Trivy** von Aqua Security.
+
+Da wir dieses Projekt lokal evaluieren, führen wir Trivy als Einmal-Scan aus. In einer echten Umgebung würde dieser Schritt in der CI/CD-Pipeline (z. B. GitHub Actions oder GitLab CI) laufen.
+
+### Lokalen Scan ausführen
+
+Du kannst das Backend-Image (als Beispiel) mit folgendem Docker-Befehl scannen. Trivy lädt sich dabei die aktuelle Vulnerability-Datenbank herunter und scannt das Image:
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image belegarbeit-taskflow-backend-api-1
+```
+
+*(Hinweis: Auf Windows kann der Pfad zum Docker-Socket abweichen. Alternativ kann man Trivy lokal installieren und `trivy image belegarbeit-taskflow-backend-api-1` ausführen).*
+
+### Trivy Report
+
+Der Output zeigt übersichtlich alle gefundenen CVEs (Common Vulnerabilities and Exposures), sortiert nach Schweregrad (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+
+**Beispiel-Ausgabe (Platzhalter):**
+```text
+belegarbeit-taskflow-backend-api-1 (debian 11.5)
+================================================
+Total: 0 (UNKNOWN: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0)
+```
+
+> **Tipp für die Abgabe:** Führe den Scan aus und füge einen Screenshot des Ergebnisses hier oder in den Anhang deiner Arbeit ein. Wenn `HIGH` oder `CRITICAL` Lücken gefunden werden, liegt das meistens an veralteten Basis-Images (wir nutzen `eclipse-temurin:17-jre`, welches regelmäßig geupdatet wird).
 
 > [!NOTE]
 > Automatisierte Image-Scans mit Trivy sind für **Phase 2** geplant.
@@ -310,21 +337,60 @@ backend-api-1:
 # Linux: sudo apt-get install trivy
 # macOS: brew install trivy
 # Windows: winget install AquaSecurity.Trivy
+### Scan ausführen
 
-# Einzelnes Image scannen
-trivy image taskflow/backend-api:latest
-
-# Alle verwendeten Images scannen
-docker compose images --quiet | xargs -I{} trivy image {}
-
-# Nur kritische und hohe Schwachstellen anzeigen
-trivy image --severity HIGH,CRITICAL taskflow/backend-api:latest
-
-# SARIF-Report für GitHub Security (Phase 2 CI/CD)
-trivy image --format sarif --output trivy-results.sarif taskflow/backend-api:latest
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy image --severity HIGH,CRITICAL belegarbeit-taskflow-backend-api-1
 ```
 
-### Geplante CI/CD-Integration (Phase 2)
+---
+
+### Scan-Verlauf & Verbesserungen
+
+#### Scan 1 – Spring Boot 3.2.0 / eclipse-temurin:17-jre (25.05.2026)
+
+| Komponente | CVE | Status |
+|---|---|---|
+| `spring-webmvc` | CVE-2024-38816 | ⚠️ HIGH (damals vorhanden) |
+| `spring-webmvc` | CVE-2024-38819 | ⚠️ HIGH (damals vorhanden) |
+| `stdlib` in pebble | CVE-2026-33811 bis 42499 (5x) | ⚠️ HIGH (damals vorhanden) |
+
+**Maßnahme:** Spring Boot auf 3.3.6 aktualisiert + Basis-Image auf `eclipse-temurin:17-jre-alpine` gewechselt.
+
+---
+
+#### Scan 2 – Spring Boot 3.3.6 / eclipse-temurin:17-jre-alpine (25.05.2026)
+
+**Ergebnis:** ✅ **0 CRITICAL** – alle ursprünglichen CVEs behoben
+
+| Komponente | CVE | Schwere | Behoben in | Beschreibung |
+|---|---|---|---|---|
+| `tomcat-embed-core` | CVE-2026-42498 | HIGH | - | HTTP Auth Header Exposure bei WebSocket |
+| `tomcat-embed-core` | CVE-2026-43513 | HIGH | - | Case-Sensitivity in LockOutRealm |
+| `org.postgresql` | CVE-2025-49146 | HIGH | 42.7.7 | Unsichere Authentifizierung bei Channel Binding |
+| `org.postgresql` | CVE-2026-42198 | HIGH | 42.7.11 | DoS via SCRAM-SHA-256 |
+| `spring-boot` | CVE-2025-22235 | HIGH | 3.3.11 | Falscher Matcher bei Actuator-Endpoint |
+| `spring-boot` | CVE-2026-40973 | HIGH | 3.5.14 | Arbitrary Code Execution via predictable Session |
+| `spring-core` | CVE-2025-41249 | HIGH | 6.2.11 | Annotation Detection Vulnerability |
+
+#### Bewertung
+
+> [!NOTE]
+> **Kein einziger CRITICAL-Fund** in beiden Scans. Das bedeutet: Es gibt keine bekannten Schwachstellen, die aus der Ferne ohne Authentifizierung zur vollständigen Systemübernahme führen könnten.
+
+> [!IMPORTANT]
+> **CVE-Management ist ein kontinuierlicher Prozess.** Durch das Update von Spring Boot 3.2.0 auf 3.3.6 wurden alle 7 ursprünglichen HIGH-CVEs behoben. Gleichzeitig enthält die Trivy-Datenbank neue Einträge für neuere Versionen – das ist kein Rückschritt, sondern der normale Verlauf von Dependency-Management. In einer Produktionsumgebung würde die CI/CD-Pipeline automatisch bei jedem Build scannen und Updates triggern.
+
+#### Maßnahmenplan (Phase 2)
+
+| Maßnahme | Priorität | Behebt |
+|---|---|---|
+| Spring Boot auf 3.3.11 updaten | Mittel | CVE-2025-22235 |
+| PostgreSQL-Treiber auf 42.7.11 updaten | Mittel | CVE-2025-49146, CVE-2026-42198 |
+| Trivy in CI/CD-Pipeline (GitHub Actions) | Mittel | Automatisches Erkennen zukünftiger CVEs |
+
+### CI/CD-Integration (Phase 2)
 
 ```yaml
 # GitHub Actions Workflow (Phase 2):

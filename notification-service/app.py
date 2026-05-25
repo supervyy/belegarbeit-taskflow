@@ -9,6 +9,16 @@ def health():
 @app.post("/notify")
 def notify():
     data = request.get_json(silent=True) or {}
+    
+    # Für die Demo: Den Alarm deutlich in der Konsole ausgeben!
+    import json
+    import sys
+    print("\n" + "="*50, file=sys.stderr)
+    print("🚨 NEUER ALARM EMPFANGEN! 🚨", file=sys.stderr)
+    print("="*50, file=sys.stderr)
+    print(json.dumps(data, indent=2), file=sys.stderr)
+    print("="*50 + "\n", file=sys.stderr)
+    
     return jsonify(
         status="queued",
         service="notification-service",

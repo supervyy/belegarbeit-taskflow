@@ -48,8 +48,9 @@ reverse-proxy  (Nginx + SSL)          ← public-net
 chmod +x reverse-proxy/certs/generate-cert.sh
 ./reverse-proxy/certs/generate-cert.sh
 
-# Windows (Git Bash / WSL)
-bash reverse-proxy/certs/generate-cert.sh
+# Windows (PowerShell)
+# Da Windows standardmäßig kein OpenSSL hat, generieren wir das Zertifikat über Docker:
+docker run --rm -v "${PWD}/reverse-proxy/certs:/certs" alpine sh -c "apk add --no-cache openssl -q && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/localhost.key -out /certs/localhost.crt -subj '/C=DE/ST=Berlin/L=Berlin/O=HTW/OU=IT-Infrastrukturen/CN=localhost'"
 ```
 
 Das Skript erzeugt:

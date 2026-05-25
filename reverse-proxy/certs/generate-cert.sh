@@ -29,6 +29,8 @@ openssl req -x509 -nodes -days 365 \
   -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 
 if [ $? -eq 0 ]; then
+  # Make readable by the nginx user (101) inside the ModSecurity container
+  chmod 644 "$KEY_FILE" "$CERT_FILE"
   echo "[cert] Done!"
   echo "  Certificate: $CERT_FILE"
   echo "  Private key: $KEY_FILE"
