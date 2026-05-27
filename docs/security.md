@@ -259,42 +259,32 @@ Include /etc/nginx/modsec/crs/rules/*.conf
 
 ---
 
-## 6. Container-Hardening (Phase 2)
+## 6. Container-Hardening (Implementiert)
 
-> [!NOTE]
-> Container-Hardening ist für **Phase 2** des Projekts geplant.
+Um die Angriffsfläche bei einem potenziellen Container-Escape so gering wie möglich zu halten, wurden weitreichende Hardening-Maßnahmen in der `docker-compose.yml` umgesetzt.
 
-### Geplante Maßnahmen in `docker-compose.yml`
+### Umgesetzte Maßnahmen
 
 ```yaml
-# Beispiel für backend-api-1 (Phase 2):
+# Beispiel-Konfiguration für die Backend-APIs:
 backend-api-1:
   image: taskflow/backend-api:latest
   read_only: true                    # Dateisystem read-only
   tmpfs:
-    - /tmp:size=64m,noexec           # Schreibbarer Temp-Bereich (kein exec)
+    - /tmp                           # Schreibbarer Temp-Bereich im RAM
   security_opt:
-    - no-new-privileges:true         # Kein sudo / setuid
+    - no-new-privileges:true         # Verhindert Privilege Escalation (sudo/setuid)
   cap_drop:
-    - ALL                            # Alle Linux-Capabilities entfernen
-  cap_add:
-    - NET_BIND_SERVICE               # Nur benötigte Capability hinzufügen
-  user: "1000:1000"                  # Kein root-User
+    - ALL                            # Entfernt alle unnötigen Linux-Kernel-Capabilities
 ```
 
-| Maßnahme | Schutzwirkung |
-|---|---|
-| `read_only: true` | Verhindert, dass ein Angreifer Dateien im Container schreibt (z. B. Backdoors) |
-| `no-new-privileges` | Verhindert Privilege-Escalation via setuid-Binaries |
-| `cap_drop: ALL` | Entfernt alle Linux-Kernel-Capabilities; nur explizit benötigte werden hinzugefügt |
-| Nicht-root-User | Minimiert den Schaden bei Container-Escape |
-| `tmpfs` für `/tmp` | Schreibzugriff nur im RAM, kein Exec → erschwert Malware-Ausführung |
-
-### Aktuell bereits umgesetzt
-
-- Alle Dienste laufen in isolierten internen Netzwerken (kein Standard-Gateway)
-- Passwörter via Docker Secrets (kein Klartext in ENV)
-- Nur Port 80/443 exponiert
+| Maßnahme | Status | Schutzwirkung |
+|---|---|---|
+| `read_only: true` | ✅ Aktiv für 7 Container | Verhindert, dass ein Angreifer Dateien im Container ändert (z. B. Malware/Backdoors ablegt). Notwendige Schreibzugriffe erfolgen über `tmpfs`. |
+| `no-new-privileges` | ✅ Aktiv für Backend/Notification | Verhindert Privilege-Escalation via setuid-Binaries. |
+| `cap_drop: ALL` | ✅ Aktiv für Backend/Notification | Entfernt alle Linux-Kernel-Capabilities (wie z. B. Netzwerkkonfiguration ändern, Module laden). |
+| Isolierte Netzwerke | ✅ Vollständig | Container haben keinen Standard-Gateway nach außen. |
+| Docker Secrets | ✅ Vollständig | Kein Klartext in ENV-Variablen. |
 
 ---
 
