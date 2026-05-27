@@ -870,9 +870,10 @@
 
       const res = await fetch('/api/health', { signal: controller.signal }).catch(err => {
         if (err.name === 'AbortError') {
-          return { ok: false, status: 504, json: async () => ({}) }; // Simuliere Gateway Timeout
+          // Timeout vom Frontend -> Backend antwortet nicht -> BE down
+          return { ok: false, status: 502, json: async () => ({}) }; 
         }
-        throw err; // Echter Netzwerkfehler (z.B. Nginx offline)
+        throw err; // Echter Netzwerkfehler (z.B. Proxy offline)
       });
       
       clearTimeout(timeoutId);
@@ -888,28 +889,42 @@
 
       state.networkError = false;
 
-      // DB error detection
-      if (!res.ok && (res.status === 503 || res.status === 504 || res.status === 502)) {
+      // ─── Fehler-Erkennung ─────────────────────────────────────────
+      // 502/504 = nginx kann kein Backend erreichen oder Timeout → BACKEND ist down
+      // 503     = Backend läuft, meldet aber explizit DB-Fehler → DB ist down
+      if (!res.ok && (res.status === 502 || res.status === 504)) {
+        // Alle Backends sind down oder antworten nicht
+        state.networkError = true;
+        state.dbError = false;
+      } else if (!res.ok && res.status === 503) {
+        // Backend läuft, meldet DB ist nicht erreichbar
         state.dbError = true;
+        state.networkError = false;
       } else if (data && data.database && data.database === 'DOWN') {
         state.dbError = true;
+        state.networkError = false;
       } else {
         state.dbError = false;
       }
 
-      // Backend status: Der User möchte KLAR sehen, dass das Backend UP ist, auch wenn die DB kaputt ist.
-      // Wenn wir einen 503/504 bekommen, hat das Backend (oder der Proxy) geantwortet, also werten wir das Backend als UP.
-      const backendStatus = (res.ok || state.dbError) ? 'UP' : 'DOWN';
+      // Backend status
+      const backendStatus = (!state.networkError) ? 'UP' : 'DOWN';
       renderBadge(backendBadge, backendStatus);
 
       // Instance name
-      const instance = (data && (data.instance || data.hostname || data.host)) || 'Backend (Wartet auf DB)';
-      backendInstance.textContent = instance;
+      const instance = (data && (data.instance || data.hostname || data.host)) || null;
+      if (state.networkError) {
+        backendInstance.textContent = 'Alle Instanzen nicht erreichbar';
+      } else if (state.dbError) {
+        backendInstance.textContent = (instance || 'Backend (Wartet auf DB)');
+      } else {
+        backendInstance.textContent = instance || 'Backend erreichbar';
+      }
 
       // Database status
       const dbStatus = state.dbError ? 'DOWN' : 'UP';
-      renderBadge(dbBadge, dbStatus);
-      dbSub.textContent = dbStatus === 'UP' ? 'Verbindung aktiv' : 'Datenbank Offline';
+      renderBadge(dbBadge, state.networkError ? null : dbStatus);
+      dbSub.textContent = state.networkError ? 'Unbekannt' : (dbStatus === 'UP' ? 'Verbindung aktiv' : 'Datenbank Offline');
 
       // Last updated
       lastUpdated.textContent = fmtTime(new Date());

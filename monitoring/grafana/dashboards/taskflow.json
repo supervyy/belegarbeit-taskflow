@@ -387,7 +387,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "editorMode": "code",
-          "expr": "count(time() - container_last_seen{container_label_com_docker_compose_service=\"database\", container_label_com_docker_compose_project=\"belegarbeit-taskflow\"} < 20) or vector(0)",
+          "expr": "sum(hikaricp_connections{pool=\"HikariPool-1\"}) > bool 15 or vector(0)",
           "legendFormat": "PostgreSQL Database",
           "range": false,
           "instant": true,
