@@ -1,5 +1,5 @@
 # TaskFlow – IT-Infrastruktur
-### Belegarbeit | HTW Dresden
+### Belegarbeit | HTW Berlin
 
 ---
 
@@ -47,8 +47,11 @@ Internet
 
 ## ▶️ Start & Grundfunktion
 
-```bash
+```powershell
 docker compose up -d
+
+# Prüfen ob alle Container (healthy) sind
+docker compose ps
 ```
 
 ✅ Alle Container starten automatisch in der richtigen Reihenfolge  
@@ -57,17 +60,32 @@ docker compose up -d
 
 | URL | Funktion |
 |---|---|
-| `https://localhost` | Webanwendung |
-| `https://localhost/api/tasks` | Daten-Endpunkt (POST) |
-| `https://localhost/api/health` | Health-Check |
+| `https://localhost` | Webanwendung (Frontend) |
+| `https://localhost/api/health` | Health-Check inkl. DB-Status |
+| `https://localhost/api/tasks` | Task-Liste abrufen (GET) |
+| `https://localhost/api/tasks` | Task anlegen (POST, JSON) |
+| `https://localhost/api/notify` | Notification senden (POST) |
 | `http://localhost:3000` | Grafana Monitoring |
 | `http://localhost:9090` | Prometheus |
+
+### Endpunkte testen (curl)
+
+```powershell
+# Health-Check – zeigt Status des Backends und der Datenbank
+curl.exe -k https://localhost/api/health
+
+# Task-Liste abrufen
+curl.exe -k https://localhost/api/tasks
+
+# Neuen Task anlegen
+curl.exe -k -X POST https://localhost/api/tasks -H "Content-Type: application/json" -d "{\"title\":\"Demo Task\",\"status\":\"todo\"}"
+```
 
 ---
 
 ## ⚡ Lasttests – k6
 
-**Tool:** [Grafana k6](https://k6.io) · **Ausführung:** via Docker
+**Tool:** [Grafana k6](https://k6.io) · **Ausführung:** lokal installiert
 
 ### Frontend-Endpunkt `GET /`
 
@@ -89,10 +107,21 @@ docker compose up -d
 | D4 | 10 | 5 MB | ✅ |
 | D5 | 100 | 5 MB | ✅ |
 | D6 | 1.000 | 5 MB | ✅ (Rate-Limit: HTTP 429) |
-| D7 | 1.000 | 5 MB | ✅ (Graceful Degradation) |
+| D7 | 1.000 | 5 MB | ❌ (Fehlgeschlagen) |
 
-> **D6/D7:** Bei 1.000 VUs × 5 MB greift der Rate-Limiter im Reverse Proxy.  
-> HTTP 429 ist eine **ordnungsgemäße Antwort** – das System crasht nicht, sondern degradiert kontrolliert.
+> **D6:** Bei 1.000 VUs × 5 MB greift der Rate-Limiter im Reverse Proxy.  
+> HTTP 429 ist eine **ordnungsgemäße Antwort** – das System crasht nicht.
+
+```powershell
+# Beispiel: Szenario 6 live ausführen
+k6 run --insecure-skip-tls-verify -e SCENARIO=scenario6 load-tests/data-endpoint-tests.js
+```
+
+### Thresholds (Erfolgskriterien)
+
+Grenzwerte, die den Lasttest auf "Fehlgeschlagen" setzen, wenn sie überschritten werden:
+- `rate>=0.90` → 90% der Anfragen müssen erfolgreich sein.
+- `p(95)<30000` → 95% der Antworten müssen in unter 30s da sein.
 
 ---
 
@@ -100,17 +129,21 @@ docker compose up -d
 
 ### Szenario 1: Frontend-Ausfall
 
-```bash
+```powershell
 docker compose stop frontend-1
 ```
 → Seite bleibt erreichbar (Load Balancer → frontend-2)  
 → **Kein Einfluss auf Verfügbarkeit** ✅
 
+```powershell
+docker compose start frontend-1
+```
+
 ---
 
 ### Szenario 2a: Backend-Redundanz (nur 1 Instanz stoppen)
 
-```bash
+```powershell
 docker compose stop backend-api-1
 ```
 
@@ -122,15 +155,15 @@ docker compose stop backend-api-1
 
 > Der Load Balancer erkennt den Ausfall und leitet alle Anfragen an die anderen 2 Instanzen weiter. **Kein Nutzer merkt etwas.** ✅
 
-```bash
-docker compose start backend-api-1   # wieder anschalten
+```powershell
+docker compose start backend-api-1
 ```
 
 ---
 
 ### Szenario 2b: Backend-Fehlermeldung (alle 3 stoppen)
 
-```bash
+```powershell
 docker compose stop backend-api-1 backend-api-2 backend-api-3
 ```
 
@@ -140,7 +173,7 @@ docker compose stop backend-api-1 backend-api-2 backend-api-3
 | Targets → **DOWN** | Prometheus `/targets` |
 | Banner: „Backend nicht erreichbar" | Frontend |
 
-```bash
+```powershell
 docker compose start backend-api-1 backend-api-2 backend-api-3
 ```
 
@@ -148,7 +181,7 @@ docker compose start backend-api-1 backend-api-2 backend-api-3
 
 ### Szenario 3: Datenbank-Ausfall
 
-```bash
+```powershell
 docker compose stop database
 ```
 
@@ -160,16 +193,21 @@ docker compose stop database
 
 > Das Frontend unterscheidet klar zwischen **Backend-Ausfall** und **Datenbank-Ausfall**.
 
----
-
-### Szenario 4: Horizontale Skalierung
-
-```bash
-Invoke-RestMethod https://localhost/api/health -SkipCertificateCheck
-# → instance: "backend-api-1" / "backend-api-2" / "backend-api-3"
+```powershell
+docker compose start database
 ```
 
-Antworten wechseln zwischen den 3 Instanzen → **Round-Robin Load Balancing** ✅
+---
+
+### Szenario 4: Horizontale Skalierung (Round-Robin beweisen)
+
+```powershell
+# 3-4x ausführen → das Feld "instance" wechselt jedes Mal!
+curl.exe -k https://localhost/api/health
+```
+
+→ Antworten wechseln zwischen `backend-api-1`, `backend-api-2`, `backend-api-3`  
+→ **Round-Robin Load Balancing** ✅
 
 ---
 
@@ -186,25 +224,40 @@ Antworten wechseln zwischen den 3 Instanzen → **Round-Robin Load Balancing** �
 
 ### Health-Checks & Abhängigkeiten
 
-```bash
+```powershell
 docker compose ps   # → alle Container: (healthy)
 ```
 
 Backend startet erst wenn DB `healthy` ist → `depends_on: condition: service_healthy`
 
+---
+
 ### Auto-Restart
 
-```bash
+```powershell
+# Status prüfen (z.B. "Up 2 hours")
+docker compose ps backend-api-2
+
+# Hauptprozess abschießen (simulierter Container-Crash)
 docker compose exec backend-api-2 kill 1
-# → Container startet nach Crash automatisch neu (restart: unless-stopped)
-# → docker compose ps zeigt: "Up 2 seconds"
+
+# Sofort nochmal prüfen → "Up 2 seconds"
+docker compose ps backend-api-2
 ```
+
+→ Docker erkennt den Absturz und startet den Container **automatisch neu** (`restart: unless-stopped`) ✅
+
+---
 
 ### Alerting
 
-- **Prometheus** feuert Alert wenn Container DOWN
+- **Prometheus** feuert Alert wenn Container > 30s DOWN
 - **AlertManager** leitet weiter an **Notification Service** (Python/Flask)
-- `docker compose logs notification-service --tail 30`
+
+```powershell
+# Logs des Notification-Service prüfen (nach 30s Wartezeit nach einem Ausfall)
+docker compose logs notification-service --tail 20
+```
 
 ---
 
@@ -214,31 +267,33 @@ docker compose exec backend-api-2 kill 1
 |---|---|
 | Netzwerk-Isolation | 5 getrennte Docker-Netzwerke |
 | SSL/HTTPS | Selbstsigniertes Zertifikat, HTTP → HTTPS Redirect |
-| Secrets | Docker Secrets / `.secrets/`-Dateien, nicht in `docker inspect` sichtbar |
-| Minimale Ports | Nur 80, 443, 3000, 9090 nach außen |
+| Secrets | Docker Secrets / `.secrets/`-Dateien |
+| Minimale Ports | Nur 80 & 443 nach außen (Grafana/Prometheus nur intern) |
 | Container-Hardening | `read_only: true`, `cap_drop: ALL`, `no-new-privileges: true` |
+| WAF | OWASP ModSecurity CRS – blockt SQL-Injection, XSS |
 
-```bash
-# Kein Passwort sichtbar:
-docker inspect belegarbeit-taskflow-backend-api-1-1 | Select-String "DB_PASSWORD"
+### Docker Secrets – Passwort nicht sichtbar
+
+```powershell
+# Beweis: DB-Passwort ist NICHT als Umgebungsvariable gesetzt
+docker inspect belegarbeit-taskflow-database-1 | Select-String "password"
+# → Keine Ausgabe = Passwort ist sicher versteckt ✅
 ```
 
 ---
 
-## 🛡️ Sonstiges
-
-### Web Application Firewall (WAF)
+## 🛡️ Web Application Firewall (WAF)
 
 **Image:** `owasp/modsecurity-crs:nginx-alpine`
 
 - Schützt gegen SQL-Injection, XSS, OWASP Top 10
 - Sitzt vor der gesamten Anwendung
-- Blockt Angriffe mit **HTTP 403**
+- Blockt Angriffe mit **HTTP 403 Forbidden**
 
-```bash
-# SQL-Injection → wird geblockt:
-Invoke-WebRequest -Uri "https://localhost/api/tasks?id=1' OR '1'='1" -SkipCertificateCheck
-# → 403 Forbidden
+```powershell
+# SQL-Injection → wird geblockt (HTTP 403):
+curl.exe -k -I "https://localhost/api/tasks?id=1%27%20OR%201=1--"
+# → HTTP/1.1 403 Forbidden ✅
 ```
 
 ---
@@ -253,10 +308,8 @@ Invoke-WebRequest -Uri "https://localhost/api/tasks?id=1' OR '1'='1" -SkipCertif
 | Backend (Spring Boot) | ❌ 4 CRITICAL (Tomcat 10.1.33) | Tomcat → `10.1.55` in pom.xml | ✅ **0** |
 | Notification (Python) | ✅ 0 | – | ✅ **0** |
 
-```bash
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  aquasec/trivy image --severity CRITICAL \
-  belegarbeit-taskflow-backend-api-1:latest
+```powershell
+docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL belegarbeit-taskflow-frontend-1:latest
 # → Total: 0 (CRITICAL: 0) ✅
 ```
 
@@ -268,10 +321,9 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 - Führt stündlich `pg_dump` aus
 - Speichert `.dump`-Dateien mit Zeitstempel in Docker Volume
 
-```bash
+```powershell
 docker compose exec db-backup ls -la /backups/
-# → mehrere .dump Dateien mit Zeitstempel sichtbar
+# → mehrere .dump Dateien mit Zeitstempel sichtbar ✅
 ```
 
 ---
-
