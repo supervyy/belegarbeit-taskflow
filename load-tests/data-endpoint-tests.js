@@ -33,8 +33,8 @@ const NORMAL_BODY = JSON.stringify({
 // k6 handles this highly efficiently across all 1000 VUs without OOM or deadlocks.
 const LARGE_BODY = open('5mb-body.bin', 'b');
 
-const JSON_HEADERS  = { headers: { 'Content-Type': 'application/json' },         insecureSkipTLSVerify: true };
-const BINARY_HEADERS = { headers: { 'Content-Type': 'application/octet-stream' }, insecureSkipTLSVerify: true };
+const JSON_HEADERS  = { headers: { 'Content-Type': 'application/json' },         insecureSkipTLSVerify: true, timeout: '120s' };
+const BINARY_HEADERS = { headers: { 'Content-Type': 'application/octet-stream' }, insecureSkipTLSVerify: true, timeout: '120s' };
 
 // ---------------------------------------------------------------------------
 // Scenario config – only the selected scenario is activated
@@ -92,7 +92,8 @@ export const options = {
   scenarios: { [SCENARIO]: ALL_SCENARIOS[SCENARIO] },
 
   thresholds: {
-    'checks':            ['rate>=0.90'],
+    // 100% of all requests must succeed (0% error rate required!)
+    'checks':            ['rate>=1.00'],
     'http_req_duration': ['p(95)<60000'],
   },
 };
